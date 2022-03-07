@@ -1,1 +1,1 @@
-nvcc project.cu -rdc=true
+make && ./a.out
