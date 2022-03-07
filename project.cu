@@ -24,14 +24,42 @@ __global__ void subKernel(
     int subBlocks
 );
 
+void doExperiment(
+    int mainBlocks,
+    int mainTPB,
+    int subBlocks,
+    int subTPB
+);
+
 int main(int argc, char *argv[])
 {
-    // int mainBlocks = 800;
-    // int mainTPB = 8;
-    int mainBlocks = 6400;
-    int mainTPB = 1;
-    int subBlocks = 16;
-    int subTPB = 16;
+    printf("Main Blocks,Threads Per Block,Sub Blocks,Sub Threads Per Block,Time (ms),Expected Sum, Actual Sum\n");
+    int mainBlocks = 16384;
+    int mainThreads = 1;
+    // int mainBlocks = 32;
+    // int mainThreads = 512;
+    for (int i = 0; i < 10; i ++) {
+        int subBlocks = 1024;
+        int subThreads = 1;
+        for (int j = 0; j < 10; j++) {
+            doExperiment(mainBlocks, mainThreads, subBlocks, subThreads);
+            subBlocks /= 2;
+            subThreads *= 2;
+        }
+        mainBlocks /= 2;
+        mainThreads *= 2;
+        // mainBlocks *= 2;
+        // mainThreads /= 2;
+    }
+}
+
+void doExperiment(
+    int mainBlocks,
+    int mainTPB,
+    int subBlocks,
+    int subTPB
+)
+{
     int numberQty = mainBlocks * mainTPB * subBlocks * subTPB;
     int *d_numbers;
     int *h_numbers = (int *)malloc(sizeof(int) * numberQty);
@@ -54,9 +82,12 @@ int main(int argc, char *argv[])
     {
         total += h_numbers[i];
     }
-    printf("Expected: %d\n", numberQty);
-    printf("Actual:   %d\n", total);
-    printf("Kernel Time (ms): %.4f\n", msElapsed);
+    printf("%d,%d,%d,%d,%.0f,%d,%d\n",
+        mainBlocks, mainTPB, subBlocks, subTPB, msElapsed, numberQty, total);
+
+    cudaFree(d_numbers);
+    free(h_numbers);
+    cudaDeviceReset();
 }
 
 __global__ void mainKernel(
