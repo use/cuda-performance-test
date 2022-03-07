@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < 10; i ++) {
         int subBlocks = 1024;
         int subThreads = 1;
-        for (int j = 0; j < 10; j++) {
+        for (int j = 0; j <= 10; j++) {
             doExperiment(mainBlocks, mainThreads, subBlocks, subThreads);
             subBlocks /= 2;
             subThreads *= 2;
