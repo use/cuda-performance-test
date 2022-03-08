@@ -12,12 +12,20 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 __global__ void mainKernel(
-    int *numbers,
+    long int *numbers,
     int subBlocks,
     int subTPB
 );
 __global__ void subKernel(
-    int *numbers,
+    long int *numbers,
+    int parentBlock,
+    int parentThread,
+    int parentDim,
+    int subBlocks
+);
+
+__global__ void subKernel2(
+    long int *numbers,
     int parentBlock,
     int parentThread,
     int parentDim,
@@ -61,14 +69,14 @@ void doExperiment(
 )
 {
     int numberQty = mainBlocks * mainTPB * subBlocks * subTPB;
-    int *d_numbers;
-    int *h_numbers = (int *)malloc(sizeof(int) * numberQty);
+    long int *d_numbers;
+    long int *h_numbers = (long int *)malloc(sizeof(long int) * numberQty);
     float msElapsed = 0;
     cudaEvent_t start, stop;
     gpuErrchk(cudaEventCreate(&start));
     gpuErrchk(cudaEventCreate(&stop));
 
-    gpuErrchk(cudaMalloc(&d_numbers, sizeof(int) * numberQty));
+    gpuErrchk(cudaMalloc(&d_numbers, sizeof(long int) * numberQty));
 
     gpuErrchk(cudaEventRecord(start));
     mainKernel<<<mainBlocks, mainTPB>>>(d_numbers, subBlocks, subTPB);
@@ -76,7 +84,7 @@ void doExperiment(
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk(cudaEventElapsedTime(&msElapsed, start, stop));
 
-    gpuErrchk(cudaMemcpy(h_numbers, d_numbers, sizeof(int) * numberQty, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_numbers, d_numbers, sizeof(long int) * numberQty, cudaMemcpyDeviceToHost));
     int total = 0;
     for (int i = 0; i < numberQty; i ++)
     {
@@ -91,15 +99,15 @@ void doExperiment(
 }
 
 __global__ void mainKernel(
-    int *numbers,
+    long int *numbers,
     int subBlocks,
     int subTPB
 ) {
-    subKernel<<<subBlocks, subTPB>>>(numbers, blockIdx.x, threadIdx.x, blockDim.x, subBlocks);
+    subKernel2<<<subBlocks, subTPB>>>(numbers, blockIdx.x, threadIdx.x, blockDim.x, subBlocks);
 }
 
 __global__ void subKernel(
-    int *numbers,
+    long int *numbers,
     int parentBlock,
     int parentThread,
     int parentDim,
@@ -108,4 +116,21 @@ __global__ void subKernel(
     int index = (parentBlock * parentDim + parentThread) * blockDim.x * subBlocks +
         blockDim.x * blockIdx.x + threadIdx.x;
     numbers[index] = 1;
+}
+
+__global__ void subKernel2(
+    long int *numbers,
+    int parentBlock,
+    int parentThread,
+    int parentDim,
+    int subBlocks
+) {
+    int index = (parentBlock * parentDim + parentThread) * blockDim.x * subBlocks +
+        blockDim.x * blockIdx.x + threadIdx.x;
+    int total = threadIdx.x;
+    while (total < threadIdx.x + 100000) {
+        total += 1;
+    }
+    total = total - threadIdx.x - 100000 + 1;
+    numbers[index] = total;
 }
